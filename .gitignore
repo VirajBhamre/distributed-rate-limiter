@@ -1,0 +1,17 @@
+# Build outputs
+ratelimiter/target/
+
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
+.vscode/
+
+# Logs / env
+*.log
+.env
+.env.*
+
+# Local k6 binary / extract (not part of source)
+k6-v*.tar.gz
+k6-v*-linux-*/

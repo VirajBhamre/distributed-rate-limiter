@@ -1,0 +1,102 @@
+spring:
+  application:
+    name: distributed-rate-limiter
+  docker:
+    compose:
+      enabled: false
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ratelimiter}
+    username: ${SPRING_DATASOURCE_USERNAME:ratelimiter}
+    password: ${SPRING_DATASOURCE_PASSWORD:ratelimiter}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:32}
+      minimum-idle: ${DB_POOL_MIN_IDLE:8}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:20000}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: ${SPRING_DATA_REDIS_TIMEOUT:2s}
+      lettuce:
+        pool:
+          enabled: true
+          max-active: ${REDIS_POOL_MAX_ACTIVE:64}
+          max-idle: ${REDIS_POOL_MAX_IDLE:32}
+          min-idle: ${REDIS_POOL_MIN_IDLE:8}
+
+server:
+  port: ${SERVER_PORT:8080}
+  tomcat:
+    # Under extreme load, workers stay busy (e.g. bcrypt on /auth/login); new connections wait in accept-count.
+    # Lower accept-count fails new connections earlier instead of holding the OS queue; higher max threads
+    # increases concurrency but also Redis/DB load. Tune with k6 / production metrics.
+    threads:
+      max: ${TOMCAT_THREADS_MAX:200}
+      min-spare: ${TOMCAT_THREADS_MIN_SPARE:20}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:200}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:10000}
+    connection-timeout: ${TOMCAT_CONNECTION_TIMEOUT:20s}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  diagnostics:
+    # Logs all FilterRegistrationBean instances (order, class, URL patterns) once at startup.
+    log-servlet-filters-at-startup: ${APP_DIAG_LOG_SERVLET_FILTERS:false}
+    # Per-request WARN when work inside RateLimitFilter (Redis + JWT parse for user scope) exceeds threshold.
+    request-path-timing: ${APP_DIAG_REQUEST_PATH_TIMING:false}
+    request-path-timing-threshold-ms: ${APP_DIAG_REQUEST_PATH_THRESHOLD_MS:25}
+    # First Security filter: measures remaining security + DispatcherServlet + controller when enabled.
+    security-downstream-timing: ${APP_DIAG_SECURITY_DOWNSTREAM_TIMING:false}
+    security-downstream-timing-threshold-ms: ${APP_DIAG_SECURITY_DOWNSTREAM_THRESHOLD_MS:25}
+  instance:
+    id: ${APP_INSTANCE_ID:local}
+  jwt:
+    secret: ${JWT_SECRET:${APP_JWT_SECRET:change-me-use-at-least-256-bits-for-hs256-secret-key-material}}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  rate-limit:
+    key-prefix: "rl:"
+    token-bucket:
+      ip:
+        capacity: ${RL_TB_IP_CAPACITY:60}
+        refill-per-second: ${RL_TB_IP_REFILL:1.0}
+      user:
+        capacity: ${RL_TB_USER_CAPACITY:120}
+        refill-per-second: ${RL_TB_USER_REFILL:2.0}
+    sliding-window:
+      ip:
+        window-ms: ${RL_SW_IP_WINDOW_MS:10000}
+        max-requests: ${RL_SW_IP_MAX:30}
+      user:
+        window-ms: ${RL_SW_USER_WINDOW_MS:10000}
+        max-requests: ${RL_SW_USER_MAX:60}
+  cache:
+    user-by-id-ttl: ${CACHE_USER_BY_ID_TTL:10m}
+    user-by-username-ttl: ${CACHE_USER_BY_USERNAME_TTL:10m}
+
+springdoc:
+  swagger-ui:
+    try-it-out-enabled: true
+    operations-sorter: method
+  show-actuator: false
+
+logging:
+  level:
+    root: INFO
+    com.distributed.ratelimiter: INFO
