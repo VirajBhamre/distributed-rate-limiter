@@ -2,7 +2,12 @@
 
 Reference implementation of a **horizontally scaled Spring Boot API** with **Redis-backed distributed rate limiting**, **JWT authentication**, **PostgreSQL** persistence, and **Redis-backed caching** for user profiles. Multiple app replicas sit behind **nginx** so you can observe load balancing, per-instance headers, and shared limiter state in one stack.
 
-Repository: [github.com/VirajBhamre/distributed-rate-limiter](https://github.com/VirajBhamre/distributed-rate-limiter)
+## About
+
+This repository is a **self-contained learning and benchmarking project**: it shows how to keep rate limits consistent when the same API runs on several instances, how to wire a reverse proxy for realistic client IPs, and how optional diagnostics and load tests (k6) interact with those limits. It is aimed at engineers who want a runnable reference—not a production SaaS template—though the patterns (Redis atomic scripts, stateless JWTs, shared cache) map cleanly to real systems.
+
+**Suggested tags (GitHub Topics and search keywords):**  
+`distributed-systems` · `rate-limiting` · `redis` · `lua` · `spring-boot` · `java` · `nginx` · `docker` · `docker-compose` · `postgresql` · `jwt` · `caching` · `k6` · `load-testing` · `horizontal-scaling` · `api-design`
 
 ---
 
