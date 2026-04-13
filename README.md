@@ -61,31 +61,42 @@ User profile reads use Spring `@Cacheable` with a **`RedisCacheManager`** (`Redi
 
 ```mermaid
 flowchart LR
-  subgraph clients [Clients]
-    K6[k6 / browsers / curl]
+  subgraph CL["Client layer"]
+    direction TB
+    K6["k6"]
+    BR["Browser"]
+    CU["curl"]
   end
 
-  subgraph edge [Edge]
-    NG[nginx :8090\nleast_conn + keepalive]
+  subgraph EG["Edge layer"]
+    NX["NGINX :8090<br/>reverse proxy · LB least_conn · upstream keepalive"]
   end
 
-  subgraph apps [App tier]
-    A1[app-1]
-    A2[app-2]
-    A3[app-3]
-    A4[app-4]
-    A5[app-5]
+  subgraph AP["App layer · Spring Boot ×5<br/>(rate-limit filter before auth & heavy DB)"]
+    direction LR
+    A1["app-1"]
+    A2["app-2"]
+    A3["app-3"]
+    A4["app-4"]
+    A5["app-5"]
   end
 
-  subgraph data [Data tier]
-    PG[(PostgreSQL)]
-    RD[(Redis)]
+  subgraph DT["Data layer · shared"]
+    direction TB
+    RD[("Redis<br/>distributed limits + profile cache")]
+    PG[("PostgreSQL<br/>primary relational DB")]
   end
 
-  K6 --> NG
-  NG --> A1 & A2 & A3 & A4 & A5
-  A1 & A2 & A3 & A4 & A5 --> PG
-  A1 & A2 & A3 & A4 & A5 --> RD
+  K6 -->|"load testing · high concurrency"| NX
+  BR --> NX
+  CU --> NX
+
+  NX -->|"forward · least_conn"| A1 & A2 & A3 & A4 & A5
+
+  A1 & A2 & A3 & A4 & A5 -->|"rate-limit check<br/>token bucket · IP/user · allow / 429"| RD
+  A1 & A2 & A3 & A4 & A5 -->|"auth"| PG
+  A1 & A2 & A3 & A4 & A5 -->|"cache lookup"| RD
+  A1 & A2 & A3 & A4 & A5 -.->|"DB query · cache miss"| PG
 ```
 
 **Filter / security ordering (simplified)**:
